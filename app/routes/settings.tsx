@@ -12,11 +12,11 @@ import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import {
   UserRole,
-  RefundStatus,
+  CancellationStatus,
   users,
   courses,
   purchases,
-  refunds,
+  cancellations,
 } from "~/db/schema";
 import { AlertTriangle } from "lucide-react";
 import { data, isRouteErrorResponse, Link } from "react-router";
@@ -55,22 +55,22 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw data("User not found.", { status: 404 });
   }
 
-  const pendingChargebacks = db
+  const pendingCancellations = db
     .select({
-      id: refunds.id,
+      id: cancellations.id,
       courseTitle: courses.title,
       courseSlug: courses.slug,
       amountPaid: purchases.amountPaid,
-      reason: refunds.reason,
-      requestedAt: refunds.requestedAt,
+      reason: cancellations.reason,
+      requestedAt: cancellations.requestedAt,
     })
-    .from(refunds)
-    .innerJoin(purchases, eq(refunds.purchaseId, purchases.id))
+    .from(cancellations)
+    .innerJoin(purchases, eq(cancellations.purchaseId, purchases.id))
     .innerJoin(courses, eq(purchases.courseId, courses.id))
     .where(
       and(
         eq(purchases.userId, currentUserId),
-        eq(refunds.status, RefundStatus.Requested)
+        eq(cancellations.status, CancellationStatus.Requested)
       )
     )
     .all();
@@ -83,7 +83,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       bio: currentUser.bio,
       role: currentUser.role,
     },
-    pendingChargebacks,
+    pendingCancellations,
   };
 }
 
@@ -122,7 +122,7 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Settings({ loaderData }: Route.ComponentProps) {
-  const { user, pendingChargebacks } = loaderData;
+  const { user, pendingCancellations } = loaderData;
   const fetcher = useFetcher();
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -209,35 +209,35 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
         </CardContent>
       </Card>
 
-      {pendingChargebacks.length > 0 && (
+      {pendingCancellations.length > 0 && (
         <Card className="mt-8 max-w-md">
           <CardHeader>
-            <h2 className="text-lg font-semibold">Pending Chargeback</h2>
+            <h2 className="text-lg font-semibold">Pending Cancellations</h2>
             <p className="text-sm text-muted-foreground">
-              {pendingChargebacks.length === 1
-                ? "One chargeback is waiting on us."
-                : `${pendingChargebacks.length} chargebacks are waiting on us.`}
+              {pendingCancellations.length === 1
+                ? "One cancellation is waiting on us."
+                : `${pendingCancellations.length} cancellations are waiting on us.`}
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            {pendingChargebacks.map((chargeback) => (
-              <div key={chargeback.id} className="rounded-md border p-3">
+            {pendingCancellations.map((cancellation) => (
+              <div key={cancellation.id} className="rounded-md border p-3">
                 <div className="flex items-start justify-between gap-3">
                   <Link
-                    to={`/courses/${chargeback.courseSlug}`}
+                    to={`/courses/${cancellation.courseSlug}`}
                     className="font-medium hover:underline"
                   >
-                    {chargeback.courseTitle}
+                    {cancellation.courseTitle}
                   </Link>
                   <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                    Pending Chargeback
+                    Pending Cancellation
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {formatPrice(chargeback.amountPaid)} · raised{" "}
-                  {new Date(chargeback.requestedAt).toLocaleDateString()}
+                  {formatPrice(cancellation.amountPaid)} · raised{" "}
+                  {new Date(cancellation.requestedAt).toLocaleDateString()}
                 </p>
-                <p className="mt-2 text-sm">{chargeback.reason}</p>
+                <p className="mt-2 text-sm">{cancellation.reason}</p>
               </div>
             ))}
           </CardContent>
