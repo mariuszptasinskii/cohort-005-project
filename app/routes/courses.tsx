@@ -25,6 +25,7 @@ import { formatPrice } from "~/lib/utils";
 import { resolveCountry } from "~/lib/country.server";
 import { calculatePppPrice } from "~/lib/ppp";
 import { StarRating } from "~/components/star-rating";
+import { ratingFromEnrolledLearner } from "~/lib/ratings.server";
 
 function buildCourseQuery(
   search: string | null,
@@ -251,6 +252,7 @@ function getCourseRatingSummaries(
       count: sql<number>`count(*)`,
     })
     .from(courseRatings)
+    .innerJoin(enrollmentsTable, ratingFromEnrolledLearner)
     .where(inArray(courseRatings.courseId, courseIds))
     .groupBy(courseRatings.courseId)
     .all();

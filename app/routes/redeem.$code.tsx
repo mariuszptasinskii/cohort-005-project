@@ -13,6 +13,7 @@ import { data } from "react-router";
 import { db } from "~/db";
 import { purchases, coupons, courses, enrollments } from "~/db/schema";
 import { eq, and } from "drizzle-orm";
+import { isLicenceUnderReview } from "~/lib/refunds.server";
 
 function getCourseById(id: number) {
   return db.select().from(courses).where(eq(courses.id, id)).get();
@@ -50,6 +51,16 @@ function redeemCoupon(
 
   if (coupon.redeemedByUserId !== null) {
     return { ok: false, error: "Coupon has already been redeemed" };
+  }
+
+  if (coupon.revokedAt !== null) {
+    return { ok: false, error: "This team licence was refunded" };
+  }
+
+  // docs/adr/0001 — no seat may be claimed while the licence's Refund
+  // Request waits on a decision.
+  if (isLicenceUnderReview(coupon.purchaseId)) {
+    return { ok: false, error: "This team licence is under review" };
   }
 
   const existingEnrollment = db
@@ -135,6 +146,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const alreadyRedeemed = coupon.redeemedByUserId !== null;
+  const licenceRefunded = !alreadyRedeemed && coupon.revokedAt !== null;
+  const licenceUnderReview =
+    !alreadyRedeemed &&
+    !licenceRefunded &&
+    isLicenceUnderReview(coupon.purchaseId);
   const alreadyEnrolled = isUserEnrolled(currentUserId, coupon.courseId);
 
   // Check country mismatch upfront so we can show a clear message
@@ -157,6 +173,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     alreadyRedeemed,
     alreadyEnrolled,
     countryMismatch,
+    licenceRefunded,
+    licenceUnderReview,
   };
 }
 
@@ -194,8 +212,15 @@ export default function Redeem({
   loaderData,
   actionData,
 }: Route.ComponentProps) {
-  const { course, code, alreadyRedeemed, alreadyEnrolled, countryMismatch } =
-    loaderData;
+  const {
+    course,
+    code,
+    alreadyRedeemed,
+    alreadyEnrolled,
+    countryMismatch,
+    licenceRefunded,
+    licenceUnderReview,
+  } = loaderData;
   const fetcher = useFetcher();
   const isSubmitting = fetcher.state !== "idle";
 
@@ -240,6 +265,28 @@ export default function Redeem({
               <p className="mt-2 text-sm text-muted-foreground">
                 Someone has already claimed this seat. Please ask the person who
                 shared this link for a new coupon.
+              </p>
+            </div>
+          ) : licenceRefunded ? (
+            <div className="rounded-lg bg-destructive/10 p-4">
+              <div className="flex items-center justify-center gap-2 text-destructive">
+                <AlertCircle className="size-5" />
+                <span className="font-medium">This licence was refunded</span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                The team licence this coupon came from has been refunded, so
+                its seats no longer work.
+              </p>
+            </div>
+          ) : licenceUnderReview ? (
+            <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
+              <div className="flex items-center justify-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertCircle className="size-5" />
+                <span className="font-medium">This licence is under review</span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                The team licence this coupon came from has a refund request
+                waiting on a decision. Seats can&apos;t be claimed until then.
               </p>
             </div>
           ) : alreadyEnrolled ? (

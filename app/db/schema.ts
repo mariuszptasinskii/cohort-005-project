@@ -35,6 +35,7 @@ export enum RefundStatus {
   Open = "open",
   Approved = "approved",
   Declined = "declined",
+  Withdrawn = "withdrawn",
 }
 
 export enum TeamMemberRole {
@@ -244,6 +245,13 @@ export const refunds = sqliteTable(
     reason: text("reason").notNull(),
     // Null until someone approves — a declined request refunds nothing.
     amountRefunded: integer("amount_refunded"),
+    // The team's explanation to the learner. Set only when declined.
+    declineReason: text("decline_reason"),
+    // How far the learner was into the course when they asked — what made the
+    // request eligible. Null on requests raised before this was recorded.
+    watchedSecondsAtRequest: integer("watched_seconds_at_request"),
+    completedLessonsAtRequest: integer("completed_lessons_at_request"),
+    totalLessonsAtRequest: integer("total_lessons_at_request"),
     requestedAt: text("requested_at")
       .notNull()
       .$defaultFn(() => new Date().toISOString()),
@@ -288,6 +296,8 @@ export const coupons = sqliteTable("coupons", {
     .references(() => purchases.id),
   redeemedByUserId: integer("redeemed_by_user_id").references(() => users.id),
   redeemedAt: text("redeemed_at"),
+  // Set when the team licence this coupon came from is refunded.
+  revokedAt: text("revoked_at"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

@@ -16,6 +16,7 @@ import {
   TeamMemberRole,
 } from "~/db/schema";
 import { eq, and } from "drizzle-orm";
+import { getPurchaseIdsUnderReview } from "~/lib/refunds.server";
 
 function getTeamForAdmin(userId: number) {
   const membership = db
@@ -60,6 +61,7 @@ interface CouponRow {
   courseId: number;
   courseTitle: string;
   redeemedByEmail: string | null;
+  seatState: "claimed" | "unclaimed" | "under-review" | "refunded";
   createdAt: string;
 }
 
@@ -111,6 +113,8 @@ export async function loader({ request }: Route.LoaderArgs) {
       });
     }
     const entry = courseMap.get(coupon.courseId)!;
+    // A refunded licence's seats no longer count toward the team's total.
+    if (coupon.revokedAt !== null) continue;
     entry.total++;
     if (coupon.redeemedByUserId !== null) {
       entry.claimed++;
@@ -127,6 +131,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     })
   );
 
+  const underReview = getPurchaseIdsUnderReview([
+    ...new Set(allCoupons.map((coupon) => coupon.purchaseId)),
+  ]);
+
   // Build coupon rows with redeemer email
   const couponRows: CouponRow[] = allCoupons.map((coupon) => {
     let redeemedByEmail: string | null = null;
@@ -141,6 +149,14 @@ export async function loader({ request }: Route.LoaderArgs) {
       courseId: coupon.courseId,
       courseTitle: course?.title ?? "Unknown Course",
       redeemedByEmail,
+      seatState:
+        coupon.redeemedByUserId !== null
+          ? "claimed"
+          : coupon.revokedAt !== null
+            ? "refunded"
+            : underReview.has(coupon.purchaseId)
+              ? "under-review"
+              : "unclaimed",
       createdAt: coupon.createdAt,
     };
   });
@@ -296,6 +312,14 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                         <span className="text-muted-foreground">
                           Claimed by {coupon.redeemedByEmail}
                         </span>
+                      ) : coupon.seatState === "refunded" ? (
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          Refunded
+                        </span>
+                      ) : coupon.seatState === "under-review" ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                          Refund under review
+                        </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
                           Unclaimed
@@ -303,7 +327,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {!coupon.redeemedByEmail && (
+                      {coupon.seatState === "unclaimed" && (
                         <CopyButton code={coupon.code} />
                       )}
                     </td>

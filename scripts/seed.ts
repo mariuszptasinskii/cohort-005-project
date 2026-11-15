@@ -2772,12 +2772,33 @@ This course is still in draft while the cluster examples are rewritten against t
       updatedAt: daysAgo(6),
     })
     .run();
+  // What Liam had used when he asked, as the request action records it: the
+  // furthest point reached in each lesson, and lessons completed. His access
+  // is paused while the request is open, so nothing after it counts.
+  const liamCourse1Lessons = new Set(course1LessonIds);
+  const liamFurthest = new Map<number, number>();
+  for (const row of watchEventRows) {
+    if (row.userId !== liam.id || !liamCourse1Lessons.has(row.lessonId)) {
+      continue;
+    }
+    liamFurthest.set(
+      row.lessonId,
+      Math.max(liamFurthest.get(row.lessonId) ?? 0, row.positionSeconds)
+    );
+  }
+  const liamWatchedSeconds = Math.round(
+    [...liamFurthest.values()].reduce((total, seconds) => total + seconds, 0)
+  );
+
   db.insert(schema.refunds)
     .values({
       purchaseId: liamPurchase.id,
       status: RefundStatus.Open,
       reason: "Bought the wrong one, I meant the advanced course.",
       requestedAt: daysAgo(4),
+      watchedSecondsAtRequest: liamWatchedSeconds,
+      completedLessonsAtRequest: 3,
+      totalLessonsAtRequest: course1LessonIds.length,
     })
     .run();
 

@@ -47,6 +47,7 @@ import {
   rangeStart,
 } from "~/lib/analytics";
 import { countryName } from "~/lib/ppp";
+import { ratingFromEnrolledLearner } from "~/lib/ratings.server";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import {
@@ -392,6 +393,7 @@ function getRatingSummary(
     })
     .from(courseRatings)
     .innerJoin(courses, eq(courseRatings.courseId, courses.id))
+    .innerJoin(enrollments, ratingFromEnrolledLearner)
     .where(scopeOn(courseRatings.createdAt, instructorId, range))
     .get();
 

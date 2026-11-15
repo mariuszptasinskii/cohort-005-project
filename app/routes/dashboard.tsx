@@ -11,6 +11,7 @@ import {
 } from "~/db/schema";
 import { eq, and, or, sql } from "drizzle-orm";
 import { getCurrentUserId } from "~/lib/session";
+import { isAccessFrozenByRefundRequest } from "~/lib/refunds.server";
 import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -219,6 +220,10 @@ export async function loader({ request }: Route.LoaderArgs) {
       totalLessons,
       nextLessonId: nextLesson?.id ?? null,
       isCompleted,
+      refundUnderReview: isAccessFrozenByRefundRequest(
+        currentUserId,
+        enrollment.courseId
+      ),
     };
   });
 
@@ -343,7 +348,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                       </div>
                     </CardContent>
                     <CardFooter>
-                      {course.nextLessonId ? (
+                      {course.refundUnderReview ? (
+                        <Link to="/settings" className="w-full">
+                          <Button className="w-full" variant="outline">
+                            Refund request under review
+                          </Button>
+                        </Link>
+                      ) : course.nextLessonId ? (
                         <Link
                           to={`/courses/${course.courseSlug}/lessons/${course.nextLessonId}`}
                           className="w-full"

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,19 +10,13 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
-import {
-  UserRole,
-  RefundStatus,
-  users,
-  courses,
-  purchases,
-  refunds,
-} from "~/db/schema";
+import { UserRole, RefundStatus, users } from "~/db/schema";
 import { AlertTriangle } from "lucide-react";
 import { data, isRouteErrorResponse, Link } from "react-router";
 import { db } from "~/db";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { formatPrice } from "~/lib/utils";
+import { listRefundRequestsForLearner } from "~/lib/refunds.server";
 
 const settingsSchema = z.object({
   name: z.string().trim().min(1, "Name cannot be empty."),
@@ -55,25 +49,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw data("User not found.", { status: 404 });
   }
 
-  const openRefundRequests = db
-    .select({
-      id: refunds.id,
-      courseTitle: courses.title,
-      courseSlug: courses.slug,
-      amountPaid: purchases.amountPaid,
-      reason: refunds.reason,
-      requestedAt: refunds.requestedAt,
-    })
-    .from(refunds)
-    .innerJoin(purchases, eq(refunds.purchaseId, purchases.id))
-    .innerJoin(courses, eq(purchases.courseId, courses.id))
-    .where(
-      and(
-        eq(purchases.userId, currentUserId),
-        eq(refunds.status, RefundStatus.Open)
-      )
-    )
-    .all();
+  const refundRequests = listRefundRequestsForLearner(currentUserId);
 
   return {
     user: {
@@ -83,7 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       bio: currentUser.bio,
       role: currentUser.role,
     },
-    openRefundRequests,
+    refundRequests,
   };
 }
 
@@ -122,7 +98,10 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Settings({ loaderData }: Route.ComponentProps) {
-  const { user, openRefundRequests } = loaderData;
+  const { user, refundRequests } = loaderData;
+  const openCount = refundRequests.filter(
+    (refundRequest) => refundRequest.status === RefundStatus.Open
+  ).length;
   const fetcher = useFetcher();
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -209,40 +188,156 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
         </CardContent>
       </Card>
 
-      {openRefundRequests.length > 0 && (
+      {refundRequests.length > 0 && (
         <Card className="mt-8 max-w-md">
           <CardHeader>
             <h2 className="text-lg font-semibold">Refund Requests</h2>
             <p className="text-sm text-muted-foreground">
-              {openRefundRequests.length === 1
-                ? "One refund request is waiting on us."
-                : `${openRefundRequests.length} refund requests are waiting on us.`}
+              {openCount === 0
+                ? "Nothing is waiting on us."
+                : openCount === 1
+                  ? "One refund request is waiting on us. Your access to that course is paused until we decide."
+                  : `${openCount} refund requests are waiting on us. Your access to those courses is paused until we decide.`}
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            {openRefundRequests.map((refundRequest) => (
-              <div key={refundRequest.id} className="rounded-md border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <Link
-                    to={`/courses/${refundRequest.courseSlug}`}
-                    className="font-medium hover:underline"
-                  >
-                    {refundRequest.courseTitle}
-                  </Link>
-                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                    Open
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {formatPrice(refundRequest.amountPaid)} · raised{" "}
-                  {new Date(refundRequest.requestedAt).toLocaleDateString()}
-                </p>
-                <p className="mt-2 text-sm">{refundRequest.reason}</p>
-              </div>
+            {refundRequests.map((refundRequest) => (
+              <RefundRequestItem
+                key={refundRequest.id}
+                refundRequest={refundRequest}
+              />
             ))}
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+const STATUS_BADGES: Record<RefundStatus, { label: string; className: string }> = {
+  [RefundStatus.Open]: {
+    label: "Open",
+    className:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+  },
+  [RefundStatus.Approved]: {
+    label: "Approved",
+    className:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  },
+  [RefundStatus.Declined]: {
+    label: "Declined",
+    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  },
+  [RefundStatus.Withdrawn]: {
+    label: "Withdrawn",
+    className: "bg-muted text-muted-foreground",
+  },
+};
+
+type LearnerRefundRequest = ReturnType<
+  typeof listRefundRequestsForLearner
+>[number];
+
+function RefundRequestItem({
+  refundRequest,
+}: {
+  refundRequest: LearnerRefundRequest;
+}) {
+  const fetcher = useFetcher<{ withdrawn: boolean; error: string | null }>();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const badge = STATUS_BADGES[refundRequest.status];
+  const isOpen = refundRequest.status === RefundStatus.Open;
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.withdrawn) {
+      toast.success("Refund request withdrawn. Your access is back.");
+    }
+    if (fetcher.state === "idle" && fetcher.data?.error) {
+      toast.error(fetcher.data.error);
+    }
+  }, [fetcher.state, fetcher.data]);
+
+  return (
+    <div className="rounded-md border p-3">
+      <div className="flex items-start justify-between gap-3">
+        <Link
+          to={`/courses/${refundRequest.courseSlug}`}
+          className="font-medium hover:underline"
+        >
+          {refundRequest.courseTitle}
+        </Link>
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
+        >
+          {badge.label}
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {formatPrice(refundRequest.amountPaid)} · raised{" "}
+        {new Date(refundRequest.requestedAt).toLocaleDateString()}
+        {refundRequest.resolvedAt && !isOpen && (
+          <>
+            {" "}
+            · {badge.label.toLowerCase()}{" "}
+            {new Date(refundRequest.resolvedAt).toLocaleDateString()}
+          </>
+        )}
+      </p>
+      <p className="mt-2 text-sm">{refundRequest.reason}</p>
+
+      {refundRequest.status === RefundStatus.Declined &&
+        refundRequest.declineReason && (
+          <div className="mt-3 rounded-md bg-muted/60 p-2 text-sm">
+            <p className="text-xs font-medium text-muted-foreground">
+              Our reason
+            </p>
+            <p>{refundRequest.declineReason}</p>
+          </div>
+        )}
+
+      {isOpen &&
+        (isConfirming ? (
+          <div className="mt-3 rounded-md border border-dashed p-2">
+            <p className="mb-2 text-sm">
+              Withdraw this request? Your access comes back straight away, and
+              you can raise a new request later if you are still eligible.
+            </p>
+            <div className="flex gap-2">
+              <fetcher.Form
+                method="post"
+                action={`/refunds/${refundRequest.id}/withdraw`}
+              >
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={fetcher.state !== "idle"}
+                >
+                  {fetcher.state !== "idle"
+                    ? "Withdrawing..."
+                    : "Yes, withdraw"}
+                </Button>
+              </fetcher.Form>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsConfirming(false)}
+              >
+                Keep it open
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setIsConfirming(true)}
+          >
+            Withdraw request
+          </Button>
+        ))}
     </div>
   );
 }
