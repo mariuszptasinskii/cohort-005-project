@@ -7,7 +7,7 @@ Cadence sells video courses to learners. This glossary covers the language aroun
 ### Refunds
 
 **Refund Request**:
-A learner's ask, with their reason, to get back what they paid for a purchase. The team approves or declines it. One purchase can have several Refund Requests over time, but only one can be undecided at once.
+A learner's ask, with their reason, to get back what they paid for a purchase. The team approves or declines it, or the learner withdraws it first. A purchase can get a new Refund Request after one is declined or withdrawn, but never after one is approved, and only one can be open at a time.
 _Avoid_: Refund (for the ask itself), Cancellation, Reversal, Chargeback
 
 **Open Refund Request**:
@@ -18,7 +18,15 @@ _Avoid_: Pending, Requested, Awaiting review
 A Refund Request the team has accepted. Approving it is what leads to a Refund.
 
 **Declined Refund Request**:
-A Refund Request the team has turned down. It has no Refund, and the learner may raise a new Refund Request.
+A Refund Request the team has turned down, with a Decline Reason. It has no Refund, and the learner may raise a new Refund Request.
+
+**Withdrawn Refund Request**:
+A Refund Request the learner took back before the team decided it. It has no Refund, and the learner may raise a new Refund Request.
+_Avoid_: Cancelled, Retracted
+
+**Decline Reason**:
+The team's explanation to the learner for declining a Refund Request. Distinct from the learner's own reason for asking.
+_Avoid_: Decision note, Rejection reason
 
 **Refund**:
 The money returned to a learner after their Refund Request is approved. It is always the full amount they paid. A declined Refund Request has no Refund.
