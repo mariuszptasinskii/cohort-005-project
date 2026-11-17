@@ -1,10 +1,18 @@
 # Cadence
 
-Cadence sells video courses to learners. This glossary covers the language around buying courses and getting money back after a purchase.
+Cadence sells video courses to Learners. This glossary covers who takes part on the platform, buying courses, and getting money back after a purchase.
 
 ## Language
 
 ### People
+
+**Learner**:
+Someone who takes courses on Cadence.
+_Avoid_: Student, User
+
+**Instructor**:
+Speaks for their own courses only. An Instructor builds and edits the courses they own, and sees the Learners enrolled on them.
+_Avoid_: Teacher, Author, Creator
 
 **Platform Admin**:
 A member of Cadence staff who runs the platform. Only a Platform Admin decides Refund Requests.
@@ -19,6 +27,10 @@ _Avoid_: Admin (on its own)
 **Purchase**:
 A single payment for a course. It is either an Individual Purchase or a Team Licence.
 _Avoid_: Order, Transaction
+
+**Enrollment**:
+A Learner's place on a course. It is what lets them watch it, and it isn't tied to the Purchase that gave it to them.
+_Avoid_: Place on a course (as a term), Access, Subscription
 
 **Individual Purchase**:
 A Purchase a learner makes for themselves. It gives the buyer the course.
@@ -68,46 +80,24 @@ _Avoid_: Completed, Paid out
 **Failed Refund**:
 A Refund where the money couldn't be sent. The Refund Request stays approved, because the decision hasn't changed.
 
-### Other terms
+### Watching
 
-**Watch Limit**:
-A Refund is only offered on a course with under two hours watched. Past that, the Learner has had the course, and the refund form turns them away.
+**Watch Time**:
+How much video a Learner has actually played in a course: the furthest point reached in each lesson, added up. Not lessons opened.
+_Avoid_: Watched, Time Watched, Viewed, Progress
+
+### Refund rules
+
+**Refund Window**:
+How long after a Purchase its buyer can raise a Refund Request. It is judged on the day the Refund Request was raised, so an Open Refund Request can't fall outside it while it waits.
+
+**Refund Watch Limit**:
+The most Watch Time a Learner can have on a course and still be offered a Refund. Past it, the Learner has had the course. "Watch Limit" for short. Not the same as the Refund Window, which is about time since the Purchase. Applies to Individual Purchases only.
 _Avoid_: Watch cap, Viewing threshold
 
-**Refunds table**:
-`refunds` — one row per Refund. Columns: `id`, `purchase_id`, `status` (`open`, `approved`, `declined`), `reason`, `amount_refunded`, `requested_at`, `resolved_at`, `resolved_by_user_id`, `decision_note`.
+**Refund Completion Limit**:
+The most of a course's lessons a Learner can have completed and still be offered a Refund. Applies to Individual Purchases only.
 
-**refunded_at**:
-Nullable text column on `coupons`. An ISO timestamp, set on every unclaimed coupon when its team purchase is refunded. `getSeatAvailability` returns `"refunded"` for it.
-
-**resolved_by_user_id**:
-Integer column on `refunds`, referencing `users.id`. Null until an Admin approves or declines the Refund.
-
-**RefundRequestCard**:
-The component that draws one Refund Request on `/admin/refunds`, with its Approve and Decline buttons.
-
-**Button**:
-A clickable element that fires an action when the user presses it. Built on `~/components/ui/button`.
-
-**Component**:
-A React function that returns JSX.
-
-**cwd**:
-The directory the dev server was started from. Paths in `scripts/` resolve from here.
-
-**Loader**:
-The React Router function that fetches a route's data on the server before the page renders.
-
-**Slug**:
-The URL-safe name of a course, as in `/courses/:slug`.
-
-**Lapsed**:
-An Enrollment that is no longer active. Shown as a badge on the instructor's student roster.
-
-**Instructor**:
-Speaks for their own courses only. An Instructor builds and edits the courses they own, and sees the learners enrolled on them.
-_Avoid_: Teacher, Author, Creator
-
-**Watched**:
-Seconds of video a Learner has actually played in a course: the furthest point reached in each lesson, added up. Not lessons opened.
-_Avoid_: Viewed, Progress
+**Rule Break**:
+A Refund rule that a Purchase breaks. It stops the buyer raising a Refund Request, but on an Open Refund Request it only warns the Platform Admin deciding it, who can still approve.
+_Avoid_: Violation, Ineligible
