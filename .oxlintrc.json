@@ -120,7 +120,9 @@
         "typescript/no-explicit-any": "off"
       }
     },
-    // Files already over a size limit. Remove each entry once the file is split.
+    // Files already over a size limit. These lists only shrink: remove an entry
+    // once its file passes. A file split out of a listed one starts unlisted.
+    // scripts/check-lint-exemptions.js fails on any new entry.
     {
       "files": [
         "app/lib/comments.server.test.ts",

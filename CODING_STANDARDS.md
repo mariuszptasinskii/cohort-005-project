@@ -20,6 +20,15 @@ a type and you do not check it again. Coerce numbers through the schema, not
 `Number()`: `Number("")` is `0`, and an empty `lessonId` once opened lesson 0
 for every learner.
 
+## Check a draft the way the action will
+
+A form that checks its input before submitting (a Save button disabled while
+the text is blank, a character counter) normalises and limits the input with
+the same function and constant the action uses, imported from where the
+action gets them. A copy drifts: the note editor compared the untrimmed text
+with the trimmed note the action stored, so after saving `"hello "` it showed
+"Unsaved changes" forever.
+
 ## Check permission in the action, not only the loader
 
 A loader guard does not protect an action. They are separate requests. For a
