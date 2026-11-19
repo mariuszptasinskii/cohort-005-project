@@ -21,8 +21,6 @@ import {
 } from "~/db/schema";
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 
-// The Lesson page's reads and writes, moved out of the route file verbatim.
-
 type CommentAuthor = {
   id: number;
   name: string;
