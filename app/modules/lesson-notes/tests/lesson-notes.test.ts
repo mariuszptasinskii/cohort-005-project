@@ -17,7 +17,7 @@ describe("noteDraft", () => {
     });
     expect(noteDraft("   \n", null)).toMatchObject({
       empty: true,
-      unsaved: true,
+      unsaved: false,
       canSave: false,
     });
   });
@@ -56,6 +56,23 @@ describe("noteDraft", () => {
     expect(noteDraft("a".repeat(MAX_NOTE_LENGTH + 1), null)).toMatchObject({
       tooLong: true,
       canSave: false,
+    });
+  });
+
+  it("has nothing to save when the text differs from the saved note only by surrounding whitespace", () => {
+    // The save action trims the body before storing it.
+    expect(noteDraft("hello \n", "hello")).toMatchObject({
+      unsaved: false,
+      canSave: false,
+    });
+  });
+
+  it("counts the trimmed text against the limit, as the save action does", () => {
+    const draft = noteDraft(` ${"a".repeat(MAX_NOTE_LENGTH)} `, null);
+    expect(draft).toMatchObject({
+      length: MAX_NOTE_LENGTH,
+      tooLong: false,
+      canSave: true,
     });
   });
 });
