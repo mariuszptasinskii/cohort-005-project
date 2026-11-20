@@ -8,8 +8,10 @@ ticket out of a queue.
 
 Read CODING_STANDARDS.md.
 
-- Behaviour goes in a deep module under app/modules/, behind an entry point a
-  test can call, never inline in a loader.
+- Behaviour goes where a test can call it, never inline in a loader or a
+  component: in the module under app/modules/ that owns its data, or beside
+  the code that owns that data when no module does. Start a new module only
+  when it takes ownership of the data too.
 - Tests ship in this ticket. End with more passing tests than you started
   with.
 - The review workflow checks you against the ticket's "Done when". Reread it

@@ -104,6 +104,22 @@ module.exports = {
         path: ["^app/db/index\\.ts$", "^node_modules/better-sqlite3/"],
       },
     },
+    {
+      name: "lib-no-components",
+      comment:
+        "app/lib is server and shared logic, so it may not depend on UI. Move a type both need into app/lib and have the component import it from there.",
+      severity: "error",
+      from: { path: "^app/lib/" },
+      to: { path: "^app/components/" },
+    },
+    {
+      name: "components-no-routes",
+      comment:
+        "Components may not depend on a route, its generated `+types` included. Declare the props the component needs.",
+      severity: "error",
+      from: { path: "^app/components/" },
+      to: { path: ["^app/routes/", "\\+types/"] },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },

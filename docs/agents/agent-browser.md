@@ -12,6 +12,29 @@ npm install -g agent-browser
 agent-browser install
 ```
 
+The factory workflows install it for you.
+
+## Logging in
+
+The app has no login form: the session holds a user ID, set by
+`POST /api/switch-user`. Pick a user from the seeded database, then switch to
+them from inside the page, so the cookie lands in the browser:
+
+```bash
+# Students enrolled in a course, with that course's slug
+sqlite3 data.db "select u.id, u.name, c.slug from users u
+  join enrollments e on e.user_id = u.id
+  join courses c on c.id = e.course_id
+  where u.role = 'student' limit 5"
+
+agent-browser open http://localhost:5173/
+agent-browser eval "fetch('/api/switch-user', {method: 'POST', body: new URLSearchParams({userId: '5'})}).then(r => r.status)"
+agent-browser open http://localhost:5173/courses/<slug>
+```
+
+Drop the `join enrollments` for a user who has not bought the course, or
+change the role to `instructor` or `admin`.
+
 ## Asking your own question
 
 Start the app with `npm run dev` first. The examples below use

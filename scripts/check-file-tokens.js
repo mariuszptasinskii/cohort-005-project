@@ -1,7 +1,9 @@
 // Fails when a file is too big for an agent to read and edit in one go.
 // Tokens are estimated as bytes / 4, which is close enough for code.
-// Usage: node scripts/check-file-tokens.js <file>...
+// Usage: node scripts/check-file-tokens.js [<file>...]
+// With no files, checks every file changed since HEAD, untracked ones too.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const MAX_TOKENS = 5000;
@@ -17,8 +19,17 @@ const IGNORED = [
 
 const isBinary = (contents) => contents.subarray(0, 8000).includes(0);
 
-const oversized = process.argv
-  .slice(2)
+const git = (...args) =>
+  execFileSync("git", args, { encoding: "utf8" }).split("\n").filter(Boolean);
+
+const changedFiles = () => [
+  ...git("diff", "--name-only", "--diff-filter=d", "HEAD"),
+  ...git("ls-files", "--others", "--exclude-standard"),
+];
+
+const files = process.argv.length > 2 ? process.argv.slice(2) : changedFiles();
+
+const oversized = files
   .map((file) => file.replaceAll("\\", "/").replace(`${process.cwd()}/`, ""))
   .filter((file) => !IGNORED.some((pattern) => pattern.test(file)))
   .map((file) => ({ file, contents: readFileSync(file) }))
@@ -52,6 +63,10 @@ How to split:
   into a fixtures file in the same tests/ folder.
 - Scripts and seed data: move large data literals into their own files and
   import them.
+
+Commit the split on its own, before the change that needed it: code moved
+verbatim, no behaviour changed. A reviewer can then check that commit as a
+move and read your change by itself.
 
 When you are done, run \`npm run check\` and commit again.`);
   process.exit(1);
