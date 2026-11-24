@@ -72,23 +72,23 @@ function getLessonCounts(db: Db, courseIds: number[]) {
 
 function getStats(db: Db): LandingStats {
   const published = eq(courses.status, CourseStatus.Published);
-  const courseCount = db
+  const [courseCount] = db
     .select({ value: count() })
     .from(courses)
     .where(published)
-    .get();
-  const lessonCount = db
+    .all();
+  const [lessonCount] = db
     .select({ value: count(lessons.id) })
     .from(lessons)
     .innerJoin(modules, eq(lessons.moduleId, modules.id))
     .innerJoin(courses, eq(modules.courseId, courses.id))
     .where(published)
-    .get();
-  const categoryCount = db.select({ value: count() }).from(categories).get();
+    .all();
+  const [categoryCount] = db.select({ value: count() }).from(categories).all();
   return {
-    courses: courseCount?.value ?? 0,
-    lessons: lessonCount?.value ?? 0,
-    categories: categoryCount?.value ?? 0,
+    courses: courseCount.value,
+    lessons: lessonCount.value,
+    categories: categoryCount.value,
   };
 }
 
