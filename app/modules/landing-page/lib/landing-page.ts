@@ -70,31 +70,25 @@ function getLessonCounts(db: Db, courseIds: number[]) {
   return new Map(rows.map((row) => [row.courseId, row.lessons]));
 }
 
-function total(rows: { value: number }[]) {
-  return rows.reduce((sum, row) => sum + row.value, 0);
-}
-
 function getStats(db: Db): LandingStats {
   const published = eq(courses.status, CourseStatus.Published);
-  const courseCount = total(
-    db.select({ value: count() }).from(courses).where(published).all()
-  );
-  const lessonCount = total(
-    db
-      .select({ value: count(lessons.id) })
-      .from(lessons)
-      .innerJoin(modules, eq(lessons.moduleId, modules.id))
-      .innerJoin(courses, eq(modules.courseId, courses.id))
-      .where(published)
-      .all()
-  );
-  const categoryCount = total(
-    db.select({ value: count() }).from(categories).all()
-  );
+  const courseCount = db
+    .select({ value: count() })
+    .from(courses)
+    .where(published)
+    .get();
+  const lessonCount = db
+    .select({ value: count(lessons.id) })
+    .from(lessons)
+    .innerJoin(modules, eq(lessons.moduleId, modules.id))
+    .innerJoin(courses, eq(modules.courseId, courses.id))
+    .where(published)
+    .get();
+  const categoryCount = db.select({ value: count() }).from(categories).get();
   return {
-    courses: courseCount,
-    lessons: lessonCount,
-    categories: categoryCount,
+    courses: courseCount?.value ?? 0,
+    lessons: lessonCount?.value ?? 0,
+    categories: categoryCount?.value ?? 0,
   };
 }
 
